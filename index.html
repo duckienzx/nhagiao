@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lọ hoa ASCII 3D – Tri ân thầy cô 20/11</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Be+Vietnam+Pro:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--fg:#f4eefc;--mut:#b0a8c4;--c:#ff7fb0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;color:var(--fg);font:400 16px/1.6 'Be Vietnam Pro',system-ui,sans-serif;background:radial-gradient(ellipse at 30% 35%,#2b1842 0%,#130e24 48%,#07060d 100%) fixed}
+header{text-align:center;padding:18px 16px 4px}
+h1{margin:0;font:700 clamp(22px,4vw,38px) 'Playfair Display',Georgia,serif;background:linear-gradient(90deg,#ffd36b,#ff8fb8,#ffd36b);-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,1fr);gap:20px;max-width:1300px;margin:0 auto;padding:10px 18px 30px;align-items:start}
+@media(max-width:860px){.wrap{grid-template-columns:1fr;padding:6px 10px 24px}.card{padding:18px}.card h2{font-size:25px}button{padding:9px 13px}.ctl{gap:6px}}
+.stage{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+pre{margin:0;font-family:'Courier New',Courier,monospace;font-weight:700;line-height:1;letter-spacing:0;white-space:pre;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+button{font:inherit;font-size:14px;color:var(--fg);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 14px;cursor:pointer}
+button:hover{background:rgba(255,255,255,.16)}
+button.on{background:var(--c);color:#1a1020;border-color:transparent;font-weight:500}
+.hint{color:var(--mut);font-size:13px;text-align:center}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:22px;transition:opacity .35s}
+.card.swap{opacity:0}
+.card h2{margin:0;font:700 30px 'Playfair Display',Georgia,serif;color:var(--c)}
+.tag{color:var(--mut);font-size:14px;margin:2px 0 12px}
+.kw{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.kw span{font-size:12px;border:1px solid var(--c);color:var(--c);border-radius:999px;padding:2px 10px}
+.card p{margin:0 0 12px}
+.teach{border-left:3px solid var(--c);padding-left:12px;font-style:italic}
+footer{text-align:center;padding:0 16px 24px;color:#ffd36b;font:600 clamp(15px,2.2vw,20px) 'Playfair Display',Georgia,serif}
+</style></head><body>
+<header><h1>🌸 Tri ân Nhà giáo Việt Nam 20/11 🌸</h1><p>Xoay lọ hoa để khám phá ý nghĩa từng loài hoa</p></header>
+<div class="wrap">
+ <div class="stage"><pre id="art" aria-label="Lọ hoa ASCII 3D"></pre>
+  <div class="ctl"><button id="prev">‹</button><button class="chip" data-k="0">🪷 Hoa sen</button><button class="chip" data-k="1">🌻 Hướng dương</button><button class="chip" data-k="2">🌹 Hoa hồng</button><button id="next">›</button><button id="zi" title="Phóng to">＋</button><button id="zo" title="Thu nhỏ">－</button><button id="rs" title="Đặt lại">⟲</button><button id="auto" class="on">Tự xoay: Bật</button></div>
+  <div class="hint">Kéo để xoay: ngang = đổi loài hoa, dọc = nhìn từ trên/dưới · lăn chuột hoặc chụm 2 ngón để phóng to</div></div>
+ <aside class="card" id="info"></aside>
+</div>
+<footer>Kính chúc quý thầy cô luôn mạnh khỏe, hạnh phúc và thật nhiều niềm vui! 💐</footer>
+<script>
+(()=>{
+let COLS=110,ROWS=58,KY=10.4,KX=KY/.6,MOB=false,zm=1,cyv=2.4,pitch=.2,sw=1,sh=1,dirty=true;const TAU=Math.PI*2,D=10,BY=1.9,STEP=TAU/3;
+let seed=7;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const nrm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+function mkFrame(p,n,S){n=nrm(n);const h=Math.abs(n[2])>.9?[1,0,0]:[0,0,1];const u=nrm(cross(n,h));return{p,n,u,v:cross(u,n),S}}
+function emit(P,F,x,y,z,nx,ny,nz,c){const{u,n,v,p,S}=F;
+ P.push(p[0]+(u[0]*x+n[0]*y+v[0]*z)*S,p[1]+(u[1]*x+n[1]*y+v[1]*z)*S,p[2]+(u[2]*x+n[2]*y+v[2]*z)*S,
+ u[0]*nx+n[0]*ny+v[0]*nz,u[1]*nx+n[1]*ny+v[1]*nz,u[2]*nx+n[2]*ny+v[2]*nz,c[0],c[1],c[2])}
+function petal(P,F,o){
+ const{phi,r0=0,h0=0,len,wid,a0,curl=0,cup=.5,sh=.7,rd=.8,col}=o;
+ const ns=Math.max(6,Math.ceil(len*F.S/.04)),nw=Math.max(4,Math.ceil(wid*2*F.S/.04)),cp=Math.cos(phi),sp=Math.sin(phi);
+ for(let i=0;i<=ns;i++){const s=i/ns,a=a0+curl*s;let ir,ih;
+  if(Math.abs(curl)>1e-4){ir=(Math.sin(a)-Math.sin(a0))/curl;ih=(Math.cos(a0)-Math.cos(a))/curl}else{ir=s*Math.cos(a0);ih=s*Math.sin(a0)}
+  const cr=r0+len*ir,ch=h0+len*ih,nr=-Math.sin(a),nh=Math.cos(a);
+  const hw=wid*Math.pow(Math.sin(Math.PI*Math.pow(Math.min(s,.999)*.96+.04,sh)),rd);
+  for(let j=0;j<=nw;j++){const w=-1+2*j/nw,t=w*hw,cu=cup*w*w*hw,rr=cr+nr*cu,tw=-w*cup*1.2;
+   const nn=nrm([nr*cp-tw*sp,nh+cu,nr*sp+tw*cp]);
+   emit(P,F,rr*cp-t*sp,ch+nh*cu,rr*sp+t*cp,nn[0],nn[1],nn[2],col(s,w))}}}
+function disc(P,F,R,hf,cf){for(let r=0;r<=R;r+=.04){const n=r<1e-3?1:Math.ceil(TAU*r/.04);
+ for(let i=0;i<n;i++){const a=i/n*TAU,x=r*Math.cos(a),z=r*Math.sin(a),q=nrm([x/R*.8,1,z/R*.8]);emit(P,F,x,hf(r),z,q[0],q[1],q[2],cf(r,a))}}}
+const bez=(a,b,c,t)=>[0,1,2].map(i=>(1-t)*(1-t)*a[i]+2*(1-t)*t*b[i]+t*t*c[i]);
+function stem(P,p0,p1,p2){const n=Math.ceil(Math.hypot(p2[0]-p0[0],p2[1]-p0[1],p2[2]-p0[2])/.03);
+ for(let i=0;i<=n;i++){const t=i/n,q=bez(p0,p1,p2,t),tg=nrm([0,1,2].map(k=>2*(1-t)*(p1[k]-p0[k])+2*t*(p2[k]-p1[k])));
+  const u=nrm(cross(tg,Math.abs(tg[2])>.9?[1,0,0]:[0,0,1])),v=cross(tg,u);
+  for(let k=0;k<6;k++){const a=k/6*TAU,c=Math.cos(a),s=Math.sin(a),d=[u[0]*c+v[0]*s,u[1]*c+v[1]*s,u[2]*c+v[2]*s];
+   P.push(q[0]+d[0]*.04,q[1]+d[1]*.04,q[2]+d[2]*.04,d[0],d[1],d[2],40,155,65)}}}
+function head(P,type,F){
+ if(type===0){ // SEN
+  const pk=[255,105,165],wh=[255,242,238],dp=[232,60,135];
+  [[8,.35,.8,.2,0,-.5],[8,.62,.78,.19,.5,-.25],[7,.92,.66,.17,.2,.1],[6,1.05,.52,.15,.6,.1]].forEach(([n,a0,len,wid,off,curl],k)=>{
+   for(let i=0;i<n;i++)petal(P,F,{phi:(i+off)/n*TAU+rnd()*.1,r0:.1,h0:k*.04,len,wid,a0:a0+(rnd()-.5)*.08,curl,cup:.9,sh:.6,rd:.8,
+    col:s=>s>.85?lerp(pk,dp,(s-.85)/.15):lerp(wh,pk,Math.pow(s,1.3))})});
+  disc(P,F,.15,()=>.3,(r,a)=>(Math.sin(a*9+r*40)>.4?[190,150,40]:[235,205,70]));
+  for(let i=0;i<30;i++){const a=i/30*TAU,r=.2+.04*(i%2);for(let h=.12;h<.42;h+=.04)emit(P,F,r*Math.cos(a),h,r*Math.sin(a),Math.cos(a),0,Math.sin(a),[255,225,90])}
+ }else if(type===1){ // HƯỚNG DƯƠNG
+  for(let L=0;L<2;L++)for(let i=0;i<21;i++)petal(P,F,{phi:(i+L*.5)/21*TAU+rnd()*.05,r0:.3-L*.02,h0:L*.04-.02,len:.55-L*.05,wid:.12,a0:.12+L*.18+rnd()*.06,curl:-.35,cup:.25,sh:.55,rd:.8,
+   col:s=>lerp(L?[255,220,50]:[255,190,10],[255,150,0],Math.pow(s,1.5))});
+  disc(P,F,.36,r=>.1*(1-(r/.36)**2)+.03,(r,a)=>{const e=r/.36;return((a/TAU*21+r*9)%1)<.5?lerp([55,28,8],[120,72,18],e):lerp([85,45,12],[175,115,30],e)});
+ }else{ // HỒNG
+  [[3,.03,.14,.22,1.45,.5,.1],[4,.07,.1,.3,1.35,.2,.14],[5,.12,.05,.4,1.2,-.1,.19],[6,.18,.02,.45,1,-.3,.24],[7,.24,0,.5,.75,-.5,.27],[7,.3,-.04,.5,.5,-.6,.28]].forEach(([n,r0,h0,len,a0,curl,wid],k)=>{
+   for(let i=0;i<n;i++)petal(P,F,{phi:i/n*TAU+k*2.4,r0,h0,len,wid,a0:a0+(rnd()-.5)*.1,curl,cup:1,sh:1,rd:.45,
+    col:s=>lerp(lerp([125,5,30],[210,15,50],k/5),[255,85,105],Math.pow(s,3)*.8)})});
+  for(let i=0;i<5;i++)petal(P,F,{phi:i/5*TAU,r0:.12,h0:-.03,len:.4,wid:.05,a0:-.35,curl:-.3,cup:.2,sh:.6,rd:.8,col:s=>lerp([30,120,45],[80,180,70],s)});
+ }}
+const ring=1.15,ha=[.7,2.8,4.9],hy=[3.35,3.55,3.15];
+const slots=[{h:[0,3.95,0],n:[.05,1,.12],S:1}].concat(ha.map((a,i)=>({h:[ring*Math.cos(a),hy[i],ring*Math.sin(a)],n:[Math.cos(a)*.55,1,Math.sin(a)*.55],S:[.82,.8,.85][i]})));
+function build(type){seed=11+type;const P=[];
+ slots.forEach(sl=>{const n=nrm(sl.n),S=sl.S,h=sl.h,pe=h.map((v,i)=>v-n[i]*.1*S),p0=[h[0]*.1,BY,h[2]*.1];
+  const d=Math.hypot(pe[0]-p0[0],pe[1]-p0[1],pe[2]-p0[2]),p1=pe.map((v,i)=>v-n[i]*d*.5);
+  stem(P,p0,p1,pe);const az=Math.atan2(h[2],h[0]);
+  [[.3,.5],[.52,-.6]].forEach(([t,o])=>petal(P,mkFrame(bez(p0,p1,pe,t),[0,1,0],1),{phi:az+o,r0:.03,len:.65,wid:.16,a0:.5,curl:-.9,cup:.4,sh:.8,rd:.7,col:s=>lerp([25,115,45],[95,205,75],s*.8)}));
+  head(P,type,mkFrame(h,n,S))});
+ return new Float32Array(P)}
+// LỌ HOA
+function vase(){const P=[],H=2.05,K=[[0,.62],[.04,.7],[.32,1],[.58,.72],[.78,.43],[.9,.42],[.97,.52],[1,.6]];
+ const R=t=>{for(let i=0;i<K.length-1;i++)if(t<=K[i+1][0]){let u=(t-K[i][0])/(K[i+1][0]-K[i][0]);u=(1-Math.cos(u*Math.PI))/2;return K[i][1]+(K[i+1][1]-K[i][1])*u}return K[K.length-1][1]};
+ const nt=Math.ceil(H/.035);
+ for(let i=0;i<=nt;i++){const t=i/nt,r=R(t),dr=(R(Math.min(1,t+.01))-R(Math.max(0,t-.01)))/(.02*H),n=Math.ceil(TAU*r/.04);
+  for(let j=0;j<n;j++){const a=j/n*TAU,q=nrm([Math.cos(a),-dr,Math.sin(a)]);
+   let c=[45,125,205];
+   if((t>.1&&t<.13)||(t>.5&&t<.53)||t>.955)c=[255,205,90];else if(t>.17&&t<.46&&Math.sin(a*8)*Math.sin(t*38)>.55)c=[245,235,210];
+   P.push(r*Math.cos(a),.05+t*H,r*Math.sin(a),q[0],q[1],q[2],c[0],c[1],c[2])}}
+ const F={p:[0,0,0],n:[0,1,0],u:[1,0,0],v:[0,0,1],S:1};
+ disc(P,{p:[0,H-.08,0],n:[0,1,0],u:[1,0,0],v:[0,0,1],S:1},.5,()=>0,()=>[10,25,55]);
+ for(let r=0;r<=1.35;r+=.04){const n=r<1e-3?1:Math.ceil(TAU*r/.04);for(let j=0;j<n;j++){const a=j/n*TAU;P.push(r*Math.cos(a),.03,r*Math.sin(a),0,1,0,...(r>1.2?[200,160,100]:[150,110,70]))}}
+ return new Float32Array(P)}
+const V=vase(),FL=[0,1,2].map(build);
+// RENDER
+const pre=document.getElementById('art'),RAMP='.:-=+*#%@';let zb,cc,cl;
+function setup(){MOB=innerWidth<700;COLS=MOB?64:110;ROWS=MOB?48:58;KY=MOB?7.6:10.4;KX=KY/.6;zb=new Float32Array(COLS*ROWS);cc=new Uint8Array(COLS*ROWS);cl=new Uint16Array(COLS*ROWS);dirty=true}
+const Lv=nrm([-.45,.6,.7]),Hv=nrm([-.2,.45,1]);
+function plot(a,s,cT,sT,cX,sX){for(let i=0;i<a.length;i+=9){let x=a[i],y=a[i+1],z=a[i+2];
+ if(s<1){x*=s;z*=s;y=BY+(y-BY)*s}y-=cyv;
+ const rx=x*cT+z*sT,rz=z*cT-x*sT,vy=y*cX-rz*sX,vz=rz*cX+y*sX,f=D/(D-vz),ix=(COLS/2+rx*f*KX*zm)|0,iy=(ROWS/2-vy*f*KY*zm)|0;
+ if(ix<0||ix>=COLS||iy<0||iy>=ROWS)continue;const k=iy*COLS+ix;if(sw*sh===1&&vz<=zb[k])continue;
+ const nx=a[i+3],ny=a[i+4],nz=a[i+5],rnx=nx*cT+nz*sT,rnz=nz*cT-nx*sT,vny=ny*cX-rnz*sX,vnz=rnz*cX+ny*sX;
+ const lum=Math.abs(rnx*Lv[0]+vny*Lv[1]+vnz*Lv[2]);let sp=Math.abs(rnx*Hv[0]+vny*Hv[1]+vnz*Hv[2]);sp*=sp;sp*=sp;sp*=sp;sp*=sp;
+ const m=.42+.75*lum,q=sp*70,r=Math.min(255,a[i+6]*m+q)>>4,g=Math.min(255,a[i+7]*m+q)>>4,b=Math.min(255,a[i+8]*m+q)>>4;
+ const col=(r<<8|g<<4|b)+1,chr=Math.min(8,Math.max(0,((lum-.1)*10)|0))+1;
+ for(let dy=0;dy<sh;dy++){const yy=iy+dy-(sh>>1);if(yy<0||yy>=ROWS)continue;for(let dx=0;dx<sw;dx++){const xx=ix+dx-(sw>>1);if(xx<0||xx>=COLS)continue;const kk=yy*COLS+xx;if(vz>zb[kk]){zb[kk]=vz;cl[kk]=col;cc[kk]=chr}}}}}
+const hex=c=>'<span style="color:#'+(c-1).toString(16).padStart(3,'0')+'">';
+function render(ang,sc){zb.fill(-1e9);cl.fill(0);cyv=2.4+1.2*Math.min(1,Math.max(0,(zm-1)/2));sw=Math.max(1,Math.ceil(.046*KX*zm));sh=Math.max(1,Math.ceil(.046*KY*zm));
+ const cT=Math.cos(ang),sT=Math.sin(ang),cX=Math.cos(pitch),sX=Math.sin(pitch);
+ plot(V,1,cT,sT,cX,sX);for(let t=0;t<3;t++)if(sc[t]>.004){const e=sc[t]*sc[t]*(3-2*sc[t]);plot(FL[t],e,cT,sT,cX,sX)}
+ let out='';for(let y=0;y<ROWS;y++){let prev=0,run='';
+  for(let x=0;x<COLS;x++){const k=y*COLS+x,c=cl[k];
+   if(!c){run+=' ';continue}
+   if(c!==prev){out+=prev?hex(prev)+run+'</span>':run;run='';prev=c}run+=RAMP[cc[k]-1]}
+  out+=(prev?hex(prev)+run+'</span>':run)+'\n'}
+ pre.innerHTML=out}
+function fit(){const w=pre.parentElement.clientWidth;pre.style.fontSize=Math.max(4,Math.min(w/(COLS*.6),innerHeight*(MOB?.6:.78)/ROWS))+'px'}
+addEventListener('resize',()=>{if((innerWidth<700)!==MOB)setup();fit();dirty=true});setup();fit();
+// THÔNG TIN
+const INFO=[
+{n:'Hoa Sen',e:'🪷',t:'Quốc hoa của Việt Nam',c:'#ff7fb0',k:['Thanh cao','Tinh khiết','Kiên cường'],
+ m:'Sen mọc lên từ bùn nhưng nở ra thanh khiết, tinh khôi – “gần bùn mà chẳng hôi tanh mùi bùn”. Hoa sen tượng trưng cho sự thanh cao, trong sáng, đức hạnh và ý chí vươn lên giữa muôn vàn khó khăn.',
+ s:'Như thầy cô: giản dị, thanh cao, lặng lẽ gieo tri thức và nhân cách cho học trò suốt bao năm tháng.'},
+{n:'Hoa Hướng Dương',e:'🌻',t:'Loài hoa luôn hướng về mặt trời',c:'#ffcf3a',k:['Niềm tin','Lạc quan','Biết ơn'],
+ m:'Hướng dương luôn xoay mình theo ánh mặt trời. Đó là biểu tượng của niềm tin, sự lạc quan, lòng trung thành và khát vọng vươn tới ánh sáng, tới những điều tốt đẹp.',
+ s:'Thầy cô là mặt trời tri thức, còn chúng em là những bông hướng dương luôn hướng về thầy cô với lòng biết ơn sâu sắc.'},
+{n:'Hoa Hồng',e:'🌹',t:'Biểu tượng của tình yêu thương',c:'#ff5a74',k:['Yêu thương','Kính trọng','Tri ân'],
+ m:'Hoa hồng là lời gửi gắm của tình yêu thương, sự kính trọng và lòng biết ơn chân thành. Những cánh hoa xếp lớp như từng bài giảng được trao đi, còn gai hồng nhắc rằng nghề dạy học luôn có những vất vả thầm lặng.',
+ s:'Bông hồng đỏ là lời tri ân: cảm ơn thầy cô đã dạy dỗ, yêu thương và dìu dắt chúng em nên người.'}];
+const info=document.getElementById('info'),chips=[...document.querySelectorAll('.chip')];
+function setInfo(t){const d=INFO[t];info.classList.add('swap');
+ setTimeout(()=>{document.documentElement.style.setProperty('--c',d.c);
+  info.innerHTML='<h2>'+d.e+' '+d.n+'</h2><div class="tag">'+d.t+'</div><div class="kw">'+d.k.map(x=>'<span>'+x+'</span>').join('')+'</div><p>'+d.m+'</p><p class="teach">'+d.s+'</p>';
+  info.classList.remove('swap')},180);
+ chips.forEach((b,i)=>b.classList.toggle('on',i===t))}
+// TƯƠNG TÁC
+let ang=0,vel=0,drag=false,lx=0,ly=0,go=null,idle=0,auto=true,shown=-1,lastSig='';const sc=[1,0,0];
+const typeOf=a=>((Math.round(a/STEP)%3)+3)%3;
+const ptr=new Map();let pd=0;
+function setZoom(z){zm=Math.max(.8,Math.min(3.2,z));dirty=true}
+pre.addEventListener('pointerdown',e=>{ptr.set(e.pointerId,[e.clientX,e.clientY]);drag=true;lx=e.clientX;ly=e.clientY;vel=0;go=null;pre.setPointerCapture(e.pointerId);pre.style.cursor='grabbing';if(ptr.size===2){const[a,b]=[...ptr.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1])}});
+pre.addEventListener('pointermove',e=>{if(!ptr.has(e.pointerId))return;
+ if(ptr.size>=2){ptr.set(e.pointerId,[e.clientX,e.clientY]);const[a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd>0)setZoom(zm*d/pd);pd=d;return}
+ const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;ptr.set(e.pointerId,[lx,ly]);ang+=dx*.012;pitch=Math.max(-.12,Math.min(1.3,pitch+dy*.008));vel=Math.max(-6,Math.min(6,dx*.7+vel*.5));dirty=true});
+const up=e=>{ptr.delete(e.pointerId);if(ptr.size===1){const v=[...ptr.values()][0];lx=v[0];ly=v[1]}if(!ptr.size){drag=false;idle=0;pre.style.cursor='grab'}};
+pre.addEventListener('pointerup',up);pre.addEventListener('pointercancel',up);
+pre.addEventListener('wheel',e=>{e.preventDefault();setZoom(zm*Math.exp(-e.deltaY*.0015));idle=0},{passive:false});
+const goStep=d=>{go=(Math.round(ang/STEP)+d)*STEP;idle=0;vel=0};
+document.getElementById('prev').onclick=()=>goStep(-1);document.getElementById('next').onclick=()=>goStep(1);
+chips.forEach((b,k)=>b.onclick=()=>{const m=Math.round(ang/STEP);for(let d=-1;d<=1;d++)if(((m+d)%3+3)%3===k){go=(m+d)*STEP}idle=0;vel=0});
+const ab=document.getElementById('auto');ab.onclick=()=>{auto=!auto;ab.classList.toggle('on',auto);ab.textContent='Tự xoay: '+(auto?'Bật':'Tắt')};
+document.getElementById('zi').onclick=()=>setZoom(zm*1.3);document.getElementById('zo').onclick=()=>setZoom(zm/1.3);
+document.getElementById('rs').onclick=()=>{setZoom(1);pitch=.2;dirty=true};
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft')goStep(-1);if(e.key==='ArrowRight')goStep(1);if(e.key==='ArrowUp'){pitch=Math.max(-.12,pitch-.1);dirty=true}if(e.key==='ArrowDown'){pitch=Math.min(1.3,pitch+.1);dirty=true}if(e.key==='+'||e.key==='=')setZoom(zm*1.2);if(e.key==='-')setZoom(zm/1.2)});
+let last=performance.now();
+function tick(now){if(now-last<(MOB?38:30)){requestAnimationFrame(tick);return}const dt=Math.min(.05,(now-last)/1000);last=now;
+ if(!drag){if(go!=null){ang+=(go-ang)*Math.min(1,dt*5);if(Math.abs(go-ang)<.003){ang=go;go=null}}
+  else{ang+=vel*dt;vel*=Math.exp(-3*dt);idle+=dt;if(auto&&idle>2&&Math.abs(vel)<.1)ang+=.32*dt}}
+ const cur=typeOf(ang);if(cur!==shown){shown=cur;setInfo(cur)}
+ for(let t=0;t<3;t++){const g=t===cur?1:0;sc[t]+=(g-sc[t])*Math.min(1,dt*6);if(Math.abs(g-sc[t])<.002)sc[t]=g}
+ const sig=ang+'|'+pitch+'|'+zm+'|'+sc[0]+'|'+sc[1]+'|'+sc[2];if(dirty||sig!==lastSig){lastSig=sig;dirty=false;render(ang,sc)}requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+})();
+</script></body></html>
